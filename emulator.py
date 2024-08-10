@@ -14,7 +14,7 @@ class Emulator:
     def __init__(self) -> None:
         pygame.init()
         self.memory = [0] * 4096
-        self.variable_register = [0] * 12
+        self.variable_register = [0] * 16
         self.index_register = 0
         self.program_counter = PROGRAM_START_ADDRESS
         self.stack = []
@@ -32,7 +32,7 @@ class Emulator:
             raise IndexError
 
     def modify_var_register(self, location: int, new_content: int):
-        if location <= 12:
+        if location <= 16:
             self.variable_register[location] = new_content
         else:
             raise IndexError
@@ -44,7 +44,7 @@ class Emulator:
             raise IndexError
 
     def access_var_reg(self, location: int):
-        if location <= 12:
+        if location <= 16:
             return self.variable_register[location]
         else:
             raise IndexError
@@ -105,6 +105,26 @@ class Emulator:
             self.stack.append(self.program_counter)
             self.program_counter = nnn
 
+        # 3XNN - skip one instruction if the value in vx is equal to NN
+        elif opcode == 0x3000:
+            if self.access_var_reg(location=x) == nn:
+                self.program_counter += 2
+
+        # 4XNN - skip one instruction if the value in vx is not equal to NN
+        elif opcode == 0x4000:
+            if self.access_var_reg(location=x) != nn:
+                self.program_counter += 2
+
+        # 5XY0 - skip if vx and vy are equal
+        elif opcode == 0x5000:
+            if self.access_var_reg(location=x) == self.access_var_reg(location=y):
+                self.program_counter += 2
+
+        # 9XY0 - skip if vx and vy are not equal
+        elif opcode == 0x9000:
+            if self.access_var_reg(location=x) != self.access_var_reg(location=y):
+                self.program_counter += 2
+
         # 00EE - return from subroutine
         elif instruction == 0x00EE:
             if self.stack:
@@ -121,6 +141,49 @@ class Emulator:
             self.modify_var_register(
                 location=x, new_content=(self.variable_register[x] + nn) & 0xFF
             )
+
+        # 8xxx instructions:
+        elif opcode == 0x8000:
+            last_nibble = instruction & 0x000F
+            
+            # 8XY0 - set vx to the value of vy
+            if last_nibble == 0x0:
+                self.modify_var_register(location=x, new_content=self.access_var_reg(location=y))
+
+            # 8XY1 - vx is set to the binary OR of vx and vy
+            if last_nibble == 0x1:
+                result = self.access_var_reg(x) | self.access_var_reg(y)
+                self.modify_var_register(location=x, new_content=result)
+
+            # 8XY2 - vx is set to the binary AND of vx and vy
+            if last_nibble == 0x2:
+                result = self.access_var_reg(x) & self.access_var_reg(y)
+                self.modify_var_register(location=x, new_content=result)
+
+            # 8XY3 - vx is set to the binary OR of vx and vy
+            if last_nibble == 0x3:
+                result = self.access_var_reg(x) ^ self.access_var_reg(y)
+                self.modify_var_register(location=x, new_content=result)
+
+            # 8XY4 - vx is set to the value of vx plus vy
+            if last_nibble == 0x4:
+                result = self.access_var_reg(x) + self.access_var_reg(y)
+                self.carry_flag = 1 if result > 0xFF else 0
+                self.modify_var_register(location=x, new_content=result)
+
+            # 8XY5 - vx is set to the value of vx minus vy
+            if last_nibble == 0x5:
+                result = self.access_var_reg(x) - self.access_var_reg(y)
+                self.carry_flag = 1 if self.access_var_reg(x) >= self.access_var_reg(y) else 0
+                self.modify_var_register(location=x, new_content=result)
+
+            # 8XY7 - vx is set to the value of vy minus vx
+            if last_nibble == 0x7:
+                result = self.access_var_reg(y) - self.access_var_reg(x)
+                self.carry_flag = 1 if self.access_var_reg(y) >= self.access_var_reg(x) else 0
+                self.modify_var_register(location=x, new_content=result)
+
+            # 8XY6 - #TODO
 
         # ANNN - set index register to i
         elif opcode == 0xA000:
@@ -188,9 +251,8 @@ class Emulator:
             if event.type == pygame.KEYDOWN:
                 ...
 
-
 # TODO: remove
 emulator = Emulator()
 #emulator.run(filename="test_opcode.ch8")
 #emulator.run(filename="Zero Demo [zeroZshadow, 2007].ch8")
-emulator.run(filename="IBM Logo.ch8")
+#emulator.run(filename="IBM Logo.ch8")
