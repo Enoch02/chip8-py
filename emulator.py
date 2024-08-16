@@ -1,3 +1,4 @@
+import random
 import sys
 import pygame
 from constants import (
@@ -24,6 +25,7 @@ class Emulator:
         self.screen_array = [[0] * SCREEN_WIDTH for _ in range(SCREEN_HEIGHT)]
         self.memory[FONT_START_ADDRESS : FONT_START_ADDRESS + len(FONT_SET)] = FONT_SET
         self.draw_flag = False
+        self.key_states = [0] * 16  # 1 is pressed state
 
     def modify_memory(self, location: int, new_content: int):
         if location <= 4096:
@@ -67,11 +69,22 @@ class Emulator:
             for _ in range(10):
                 self.decode_and_execute(instruction=self.fetch())
 
-            if (self.draw_flag):
+            beep = pygame.mixer.Sound("bleep-41488.mp3")
+
+            if self.sound_timer > 0:
+                beep.play()
+
+            if self.sound_timer == 0:
+                beep.stop()
+
+            self.handle_inputs()
+
+            if self.delay_timer > 0:
+                self.delay_timer -= 1
+
+            if self.draw_flag:
                 self.display()
                 self.draw_flag = False
-            
-            self.handle_inputs()
 
     def fetch(self) -> int:
         first_opcode = self.access_memory(location=self.program_counter)
@@ -83,7 +96,7 @@ class Emulator:
         return instruction
 
     def decode_and_execute(self, instruction: int):
-        opcode = (instruction & 0xF000)
+        opcode = instruction & 0xF000
         x = (instruction & 0xF00) >> 8
         y = (instruction & 0x00F0) >> 4
         n = instruction & 0x000F
@@ -145,10 +158,12 @@ class Emulator:
         # 8xxx instructions:
         elif opcode == 0x8000:
             last_nibble = instruction & 0x000F
-            
+
             # 8XY0 - set vx to the value of vy
             if last_nibble == 0x0:
-                self.modify_var_register(location=x, new_content=self.access_var_reg(location=y))
+                self.modify_var_register(
+                    location=x, new_content=self.access_var_reg(location=y)
+                )
 
             # 8XY1 - vx is set to the binary OR of vx and vy
             if last_nibble == 0x1:
@@ -174,20 +189,47 @@ class Emulator:
             # 8XY5 - vx is set to the value of vx minus vy
             if last_nibble == 0x5:
                 result = self.access_var_reg(x) - self.access_var_reg(y)
-                self.carry_flag = 1 if self.access_var_reg(x) >= self.access_var_reg(y) else 0
+                self.carry_flag = (
+                    1 if self.access_var_reg(x) >= self.access_var_reg(y) else 0
+                )
                 self.modify_var_register(location=x, new_content=result)
 
             # 8XY7 - vx is set to the value of vy minus vx
             if last_nibble == 0x7:
                 result = self.access_var_reg(y) - self.access_var_reg(x)
-                self.carry_flag = 1 if self.access_var_reg(y) >= self.access_var_reg(x) else 0
+                self.carry_flag = (
+                    1 if self.access_var_reg(y) >= self.access_var_reg(x) else 0
+                )
                 self.modify_var_register(location=x, new_content=result)
 
-            # 8XY6 - #TODO
+            # 8XY6 - shift vy 1 bit to the right and store in vx #TODO: make configurable
+            if last_nibble == 0x6:
+                lsb_y = self.access_var_reg(y) & 0x1
+                self.carry_flag = lsb_y
+
+                shifted = self.access_var_reg(y) >> 1
+                self.modify_var_register(location=x, new_content=shifted)
+
+            # 8XYE - shift vx to the left
+            if last_nibble == 0xE:
+                msb = self.access_var_reg(y)
+                self.carry_flag = msb
+
+                shifted = self.access_var_reg(y) << 1
+                self.modify_var_register(location=x, new_content=shifted)
 
         # ANNN - set index register to i
         elif opcode == 0xA000:
             self.index_register = nnn
+
+        # BNNN - jump with offset (v0)
+        elif opcode == 0xB000:
+            self.program_counter = nnn + self.access_var_reg(0)
+
+        # CXNN - generate a random number
+        elif opcode == 0xC000:
+            random_num = random.randint(0, 255)
+            self.modify_var_register(location=x, new_content=random_num & nn)
 
         # DXYN - display / draw
         elif opcode == 0xD000:
@@ -210,6 +252,78 @@ class Emulator:
                         self.screen_array[screen_y][screen_x] ^= 1
 
             self.draw_flag = True
+
+        elif opcode == 0xE000:
+            last_byte = instruction & 0x00FF
+
+            # EX9E - skip if key vx is pressed
+            if last_byte == 0x9E:
+                if self.key_states[self.access_var_reg(x)] == 1:
+                    self.program_counter += 2
+
+            # EXA1 - skip if key vx is not pressed
+            if last_byte == 0xA1:
+                if self.key_states[self.access_var_reg(x)] == 0:
+                    self.program_counter += 2
+
+        elif opcode == 0xF000:
+            last_byte = instruction & 0x00FF
+
+            # FX07 - set vx to the current value of the delay timer
+            if last_byte == 0x07:
+                self.modify_var_register(location=x, new_content=self.delay_timer)
+
+            elif last_byte == 0x15:
+                self.delay_timer = self.access_var_reg(x)
+
+            elif last_byte == 0x18:
+                self.sound_timer = self.access_var_reg(x)
+
+            # FX1E - add to index
+            elif last_byte == 0x1E:
+                self.index_register = (
+                    self.index_register + self.access_var_reg(x) & 0xFFF
+                )
+
+            # FX0A - get key  #TODO: not sure about this...
+            elif last_byte == 0x0A:
+                while True:
+                    for index, key_state in enumerate(self.key_states):
+                        if key_state == 1:
+                            self.modify_var_register(location=x, new_content=index)
+                            print("Key Pressed!")
+                            break
+
+            # FX29 - font character
+            elif last_byte == 0x29:
+                self.index_register = FONT_START_ADDRESS + self.access_var_reg(x) * 5
+
+            # FX33
+            elif last_byte == 0x33:
+                vx = self.access_var_reg(x)
+                hundreds = (vx // 100) % 10
+                tens = (vx // 10) % 10
+                ones = vx % 10
+
+                self.modify_memory(location=self.index_register, new_content=hundreds)
+                self.modify_memory(location=self.index_register + 1, new_content=tens)
+                self.modify_memory(location=self.index_register + 2, new_content=ones)
+
+            # FX55 - store registers to memory # TODO: fix error∆
+            elif last_byte == 0x55:
+                for i in range(self.access_var_reg(x) + 1):
+                    self.modify_memory(
+                        location=self.index_register + i,
+                        new_content=self.access_var_reg(i),
+                    )
+
+            # FX65 - load registers to memory
+            elif last_byte == 0x65:
+                for i in range(self.access_var_reg(x) + 1):
+                    self.modify_var_register(
+                        location=i,
+                        new_content=self.access_memory(self.index_register + i),
+                    )
 
         else:
             print(f"Unknown opcode: {opcode:04X}")
@@ -239,8 +353,8 @@ class Emulator:
         )
         screen = pygame.display.set_mode((display_width, display_height))
         screen.blit(scaled_surface, (0, 0))
-        clock.tick(60)  # Limit frame rate to 60 FPS
         pygame.display.flip()
+        clock.tick(60)  # Limit frame rate to 60 FPS
 
     def handle_inputs(self):
         for event in pygame.event.get():
@@ -249,10 +363,77 @@ class Emulator:
                 sys.exit()
 
             if event.type == pygame.KEYDOWN:
-                ...
+                if event.key == pygame.K_1:
+                    self.key_states[0] = 1
+                if event.key == pygame.K_2:
+                    self.key_states[1] = 1
+                if event.key == pygame.K_3:
+                    self.key_states[2] = 1
+                if event.key == pygame.K_4:
+                    self.key_states[3] = 1
+                if event.key == pygame.K_q:
+                    self.key_states[4] = 1
+                if event.key == pygame.K_w:
+                    self.key_states[5] = 1
+                if event.key == pygame.K_e:
+                    self.key_states[6] = 1
+                if event.key == pygame.K_r:
+                    self.key_states[7] = 1
+                if event.key == pygame.K_a:
+                    self.key_states[8] = 1
+                if event.key == pygame.K_s:
+                    self.key_states[9] = 1
+                if event.key == pygame.K_d:
+                    self.key_states[10] = 1
+                if event.key == pygame.K_f:
+                    self.key_states[11] = 1
+                if event.key == pygame.K_z:
+                    self.key_states[12] = 1
+                if event.key == pygame.K_x:
+                    self.key_states[13] = 1
+                if event.key == pygame.K_c:
+                    self.key_states[14] = 1
+                if event.key == pygame.K_v:
+                    self.key_states[15] = 1
+
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_1:
+                    self.key_states[0] = 0
+                if event.key == pygame.K_2:
+                    self.key_states[1] = 0
+                if event.key == pygame.K_3:
+                    self.key_states[2] = 0
+                if event.key == pygame.K_4:
+                    self.key_states[3] = 0
+                if event.key == pygame.K_q:
+                    self.key_states[4] = 0
+                if event.key == pygame.K_w:
+                    self.key_states[5] = 0
+                if event.key == pygame.K_e:
+                    self.key_states[6] = 0
+                if event.key == pygame.K_r:
+                    self.key_states[7] = 0
+                if event.key == pygame.K_a:
+                    self.key_states[8] = 0
+                if event.key == pygame.K_s:
+                    self.key_states[9] = 0
+                if event.key == pygame.K_d:
+                    self.key_states[10] = 0
+                if event.key == pygame.K_f:
+                    self.key_states[11] = 0
+                if event.key == pygame.K_z:
+                    self.key_states[12] = 0
+                if event.key == pygame.K_x:
+                    self.key_states[13] = 0
+                if event.key == pygame.K_c:
+                    self.key_states[14] = 0
+                if event.key == pygame.K_v:
+                    self.key_states[15] = 0
+
 
 # TODO: remove
 emulator = Emulator()
-#emulator.run(filename="test_opcode.ch8")
-#emulator.run(filename="Zero Demo [zeroZshadow, 2007].ch8")
-#emulator.run(filename="IBM Logo.ch8")
+emulator.run(filename="test_opcode.ch8")
+# emulator.run(filename="Zero Demo [zeroZshadow, 2007].ch8")
+# emulator.run(filename="IBM Logo.ch8")
+# emulator.run(filename="/Users/adesa/Documents/Programming/Projects/chip8-py/chip8-roms/games/Pong (1 player).ch8")
