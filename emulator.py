@@ -64,9 +64,10 @@ class Emulator:
 
     def run(self, filename: str):
         self.load_program(filename)
+        self.setup_display()
 
         while True:
-            for _ in range(10):
+            for _ in range(15):
                 self.decode_and_execute(instruction=self.fetch())
 
             beep = pygame.mixer.Sound("bleep-41488.mp3")
@@ -79,8 +80,11 @@ class Emulator:
 
             self.handle_inputs()
 
+            # TODO: not working fine
             if self.delay_timer > 0:
                 self.delay_timer -= 1
+            if self.sound_timer > 0:
+                self.sound_timer - 1
 
             if self.draw_flag:
                 self.display()
@@ -105,8 +109,6 @@ class Emulator:
 
         # clear screen
         if instruction == 0x00E0:
-            # self.screen.fill((0, 0, 0))
-            print("Clear")
             self.screen_array = [[0] * SCREEN_WIDTH for _ in range(SCREEN_HEIGHT)]
 
         # 1NNN - jump to nnn
@@ -311,50 +313,53 @@ class Emulator:
 
             # FX55 - store registers to memory # TODO: fix error∆
             elif last_byte == 0x55:
-                for i in range(self.access_var_reg(x) + 1):
+                for i in range(x + 1):
                     self.modify_memory(
                         location=self.index_register + i,
                         new_content=self.access_var_reg(i),
                     )
+                self.index_register = x + 1
 
             # FX65 - load registers to memory
             elif last_byte == 0x65:
-                for i in range(self.access_var_reg(x) + 1):
+                for i in range(x + 1):
                     self.modify_var_register(
                         location=i,
                         new_content=self.access_memory(self.index_register + i),
                     )
+                self.index_register = x + 1
 
         else:
             print(f"Unknown opcode: {opcode:04X}")
 
-    def display(self):
-        clock = pygame.time.Clock()
-        internal_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    def setup_display(self):
+        self.internal_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         scale_factor = 10
-        display_width, display_height = (
+        self.display_width, self.display_height = (
             SCREEN_WIDTH * scale_factor,
             SCREEN_HEIGHT * scale_factor,
         )
-        pixels = pygame.surfarray.pixels3d(internal_surface)
+        self.pixels = pygame.surfarray.pixels3d(self.internal_surface)
+        self.screen = pygame.display.set_mode((self.display_width, self.display_height))
 
+    def display(self):
+        self.screen.fill((255, 255, 255))
         for x in range(SCREEN_WIDTH):
             for y in range(SCREEN_HEIGHT):
                 try:
                     if self.screen_array[y][x] == 0:
-                        pixels[x, y] = (255, 255, 255)
+                        self.pixels[x, y] = (255, 255, 255)
                     else:
-                        pixels[x, y] = (0, 0, 0)
+                        self.pixels[x, y] = (0, 0, 0)
                 except IndexError:
                     print(f"IndexError: Tried to access ({x}, {y})")
 
         scaled_surface = pygame.transform.scale(
-            internal_surface, (display_width, display_height)
+            self.internal_surface, (self.display_width, self.display_height)
         )
-        screen = pygame.display.set_mode((display_width, display_height))
-        screen.blit(scaled_surface, (0, 0))
+        # screen = pygame.display.set_mode((self.display_width, self.display_height))
+        self.screen.blit(scaled_surface, (0, 0))
         pygame.display.flip()
-        clock.tick(60)  # Limit frame rate to 60 FPS
 
     def handle_inputs(self):
         for event in pygame.event.get():
@@ -433,7 +438,8 @@ class Emulator:
 
 # TODO: remove
 emulator = Emulator()
-emulator.run(filename="test_opcode.ch8")
+# emulator.run(filename="test_opcode.ch8")
 # emulator.run(filename="Zero Demo [zeroZshadow, 2007].ch8")
 # emulator.run(filename="IBM Logo.ch8")
-# emulator.run(filename="/Users/adesa/Documents/Programming/Projects/chip8-py/chip8-roms/games/Pong (1 player).ch8")
+# emulator.run(filename="/Users/adesa/Documents/Programming/Projects/chip8-py/chip8-roms/demos/Particle Demo [zeroZshadow, 2008].ch8")
+emulator.run(filename="/Users/adesa/Documents/Programming/Projects/chip8-py/chip8-roms/games/Pong (1 player).ch8")
