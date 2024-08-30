@@ -311,7 +311,7 @@ class Emulator:
                 self.modify_memory(location=self.index_register + 1, new_content=tens)
                 self.modify_memory(location=self.index_register + 2, new_content=ones)
 
-            # FX55 - store registers to memory # TODO: fix error∆
+            # FX55 - store registers to memory
             elif last_byte == 0x55:
                 for i in range(x + 1):
                     self.modify_memory(
@@ -357,7 +357,6 @@ class Emulator:
         scaled_surface = pygame.transform.scale(
             self.internal_surface, (self.display_width, self.display_height)
         )
-        # screen = pygame.display.set_mode((self.display_width, self.display_height))
         self.screen.blit(scaled_surface, (0, 0))
         pygame.display.flip()
 
@@ -434,12 +433,3 @@ class Emulator:
                     self.key_states[14] = 0
                 if event.key == pygame.K_v:
                     self.key_states[15] = 0
-
-
-# TODO: remove
-emulator = Emulator()
-# emulator.run(filename="test_opcode.ch8")
-# emulator.run(filename="Zero Demo [zeroZshadow, 2007].ch8")
-# emulator.run(filename="IBM Logo.ch8")
-# emulator.run(filename="/Users/adesa/Documents/Programming/Projects/chip8-py/chip8-roms/demos/Particle Demo [zeroZshadow, 2008].ch8")
-emulator.run(filename="/Users/adesa/Documents/Programming/Projects/chip8-py/chip8-roms/games/Pong (1 player).ch8")
