@@ -12,7 +12,7 @@ from constants import (
 
 class Emulator:
 
-    def __init__(self) -> None:
+    def __init__(self, set_vx_to_vy=False) -> None:
         pygame.init()
         self.memory = [0] * 4096
         self.variable_register = [0] * 16
@@ -26,6 +26,8 @@ class Emulator:
         self.memory[FONT_START_ADDRESS : FONT_START_ADDRESS + len(FONT_SET)] = FONT_SET
         self.draw_flag = False
         self.key_states = [0] * 16  # 1 is pressed state
+
+        self.set_vx_to_vy = set_vx_to_vy
 
     def modify_memory(self, location: int, new_content: int):
         if location <= 4096:
@@ -186,7 +188,7 @@ class Emulator:
             if last_nibble == 0x4:
                 result = self.access_var_reg(x) + self.access_var_reg(y)
                 self.carry_flag = 1 if result > 0xFF else 0
-                self.modify_var_register(location=x, new_content=result)
+                self.modify_var_register(location=x, new_content=result & 0xFF)
 
             # 8XY5 - vx is set to the value of vx minus vy
             if last_nibble == 0x5:
@@ -194,7 +196,7 @@ class Emulator:
                 self.carry_flag = (
                     1 if self.access_var_reg(x) >= self.access_var_reg(y) else 0
                 )
-                self.modify_var_register(location=x, new_content=result)
+                self.modify_var_register(location=x, new_content=result & 0xFF)
 
             # 8XY7 - vx is set to the value of vy minus vx
             if last_nibble == 0x7:
@@ -204,21 +206,26 @@ class Emulator:
                 )
                 self.modify_var_register(location=x, new_content=result)
 
-            # 8XY6 - shift vy 1 bit to the right and store in vx #TODO: make configurable
+            # 8XY6 - shift vy 1 bit to the right and store in vx #TODO: wrong impl
             if last_nibble == 0x6:
-                lsb_y = self.access_var_reg(y) & 0x1
-                self.carry_flag = lsb_y
+                if self.set_vx_to_vy:
+                    self.modify_var_register(
+                        location=x, new_content=self.access_var_reg(y)
+                    )
 
-                shifted = self.access_var_reg(y) >> 1
-                self.modify_var_register(location=x, new_content=shifted)
+                shifted_out_bit = self.access_var_reg(x) & 0x01
+                self.carry_flag = shifted_out_bit
+                self.modify_var_register(
+                    location=x, new_content=self.access_var_reg(x) >> 1
+                )
 
             # 8XYE - shift vx to the left
             if last_nibble == 0xE:
-                msb = self.access_var_reg(y)
-                self.carry_flag = msb
+                shifted_out_bit_e = self.access_var_reg(x) & 0x80 >> 7
+                self.carry_flag = shifted_out_bit_e
 
-                shifted = self.access_var_reg(y) << 1
-                self.modify_var_register(location=x, new_content=shifted)
+                shifted_e = (self.access_var_reg(y) << 1) & 0xFF
+                self.modify_var_register(location=x, new_content=shifted_e)
 
         # ANNN - set index register to i
         elif opcode == 0xA000:
