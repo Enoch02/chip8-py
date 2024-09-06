@@ -1,6 +1,6 @@
 import random
-import sys
 import pygame
+import pathlib
 from constants import (
     FONT_START_ADDRESS,
     FONT_SET,
@@ -8,12 +8,12 @@ from constants import (
     SCREEN_HEIGHT,
     PROGRAM_START_ADDRESS,
 )
+from typing import Callable
 
 
 class Emulator:
 
     def __init__(self, set_vx_to_vy=False) -> None:
-        pygame.init()
         self.memory = [0] * 4096
         self.variable_register = [0] * 16
         self.index_register = 0
@@ -28,6 +28,32 @@ class Emulator:
         self.key_states = [0] * 16  # 1 is pressed state
 
         self.set_vx_to_vy = set_vx_to_vy
+        self.running = True
+
+        pygame.init()
+        self.beep = pygame.mixer.Sound("bleep-41488.mp3")
+        self.clock = pygame.time.Clock()
+
+    def stop(self):
+        if self.running:
+            self. running = False
+            print("From the emulator!")
+        self.draw_flag = False
+        
+        # clear loaded content
+        self.memory = [0] * 4096
+        self.variable_register = [0] * 16
+        self.index_register = 0
+        self.program_counter = PROGRAM_START_ADDRESS
+        self.stack = []
+        self.delay_timer = 0
+        self.sound_timer = 0
+        self.carry_flag = 0
+        self.screen_array = [[0] * SCREEN_WIDTH for _ in range(SCREEN_HEIGHT)]
+        self.key_states = [0] * 16  # 1 is pressed state
+
+        pygame.display.quit()
+        pygame.quit()
 
     def modify_memory(self, location: int, new_content: int):
         if location <= 4096:
@@ -64,21 +90,20 @@ class Emulator:
                 PROGRAM_START_ADDRESS : PROGRAM_START_ADDRESS + len(program_data)
             ] = program_data
 
-    def run(self, filename: str):
+    def run(self, filename: pathlib.Path):
         self.load_program(filename)
         self.setup_display()
+        pygame.display.set_caption(filename.name)
 
-        while True:
-            for _ in range(15):
+        while self.running:
+            for _ in range(30):  # TODO: make configurable
                 self.decode_and_execute(instruction=self.fetch())
 
-            beep = pygame.mixer.Sound("bleep-41488.mp3")
-
             if self.sound_timer > 0:
-                beep.play()
+                self.beep.play()
 
             if self.sound_timer == 0:
-                beep.stop()
+                self.beep.stop()
 
             self.handle_inputs()
 
@@ -91,6 +116,10 @@ class Emulator:
             if self.draw_flag:
                 self.display()
                 self.draw_flag = False
+            
+            self.clock.tick(60)
+
+        self.stop()
 
     def fetch(self) -> int:
         first_opcode = self.access_memory(location=self.program_counter)
@@ -295,6 +324,8 @@ class Emulator:
                 )
 
             # FX0A - get key  #TODO: not sure about this...
+            # TODO: update -> this is not working as intended
+                # FIXME: current implementation freezes the program
             elif last_byte == 0x0A:
                 while True:
                     for index, key_state in enumerate(self.key_states):
@@ -370,8 +401,7 @@ class Emulator:
     def handle_inputs(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                self.running = False
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:

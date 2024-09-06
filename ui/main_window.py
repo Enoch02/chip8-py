@@ -2,7 +2,9 @@ import configparser
 import pathlib
 from emulator import Emulator
 
+import pygame
 from PyQt6.QtCore import QFileInfo
+from PyQt6.QtGui import QKeyEvent, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -15,7 +17,8 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QMessageBox,
 )
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QKeyEvent
+import threading
 from typing import Dict
 
 ROMS_FOLDER_CONFIG_KEY = "current_rom_folder"
@@ -26,7 +29,6 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.config = configparser.ConfigParser()
-        self.emulator = Emulator()
         self.roms: Dict[str, pathlib.Path] = {}
 
         self.check_config()
@@ -87,7 +89,7 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
 
         quit_action = QAction("Close Application", self)
-        quit_action.triggered.connect(self.exitApplication)
+        quit_action.triggered.connect(self.exit_application)
         file_menu.addAction(quit_action)
 
     def setup_main_window(self):
@@ -101,7 +103,7 @@ class MainWindow(QMainWindow):
 
         self.main_layout.addWidget(self.list_widget)
 
-    def exitApplication(self):
+    def exit_application(self):
         QApplication.quit()
 
     def open_rom_file(self):
@@ -148,5 +150,15 @@ class MainWindow(QMainWindow):
         self.run_rom(file.absolute())
 
     def run_rom(self, rom_path: str):
-        # FIXME: pygame window currently closes the entire program when it is closed
-        self.emulator.run(rom_path)  # TODO: integrate pygame window into pyqt?
+        try:
+            self.emulator = Emulator()
+            self.game_thread = threading.Thread(target=self.emulator.run(rom_path))
+            self.game_thread.start()
+        except Exception as e:
+            print(e)
+
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
+        if a0.matches(QKeySequence.StandardKey.Quit):
+            self.emulator.stop()
+        else:
+            super().keyPressEvent(a0)
