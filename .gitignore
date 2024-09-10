@@ -1,6 +1,6 @@
+.idea/
 venv/
-__pycache__/constants.cpython-312.pyc
-__pycache__/emulator.cpython-312.pyc
+__pycache__/
 IBM Logo.ch8
 Zero Demo [zeroZshadow, 2007].ch8
 test_opcode.ch8

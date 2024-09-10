@@ -1,6 +1,8 @@
-import random
-import pygame
 import pathlib
+import random
+
+import pygame
+
 from constants import (
     FONT_START_ADDRESS,
     FONT_SET,
@@ -8,12 +10,16 @@ from constants import (
     SCREEN_HEIGHT,
     PROGRAM_START_ADDRESS,
 )
-from typing import Callable
 
 
 class Emulator:
 
     def __init__(self, set_vx_to_vy=False) -> None:
+        self.screen = None
+        self.pixels = None
+        self.display_height = None
+        self.display_width = None
+        self.internal_surface = None
         self.memory = [0] * 4096
         self.variable_register = [0] * 16
         self.index_register = 0
@@ -23,7 +29,7 @@ class Emulator:
         self.sound_timer = 0
         self.carry_flag = 0
         self.screen_array = [[0] * SCREEN_WIDTH for _ in range(SCREEN_HEIGHT)]
-        self.memory[FONT_START_ADDRESS : FONT_START_ADDRESS + len(FONT_SET)] = FONT_SET
+        self.memory[FONT_START_ADDRESS: FONT_START_ADDRESS + len(FONT_SET)] = FONT_SET
         self.draw_flag = False
         self.key_states = [0] * 16  # 1 is pressed state
 
@@ -36,10 +42,10 @@ class Emulator:
 
     def stop(self):
         if self.running:
-            self. running = False
+            self.running = False
             print("From the emulator!")
         self.draw_flag = False
-        
+
         # clear loaded content
         self.memory = [0] * 4096
         self.variable_register = [0] * 16
@@ -86,12 +92,10 @@ class Emulator:
             if len(program_data) + PROGRAM_START_ADDRESS > len(self.memory):
                 raise ValueError("Program is too large to fit in memory.")
             # Load program data into memory starting at 0x200
-            self.memory[
-                PROGRAM_START_ADDRESS : PROGRAM_START_ADDRESS + len(program_data)
-            ] = program_data
+            self.memory[PROGRAM_START_ADDRESS: PROGRAM_START_ADDRESS + len(program_data)] = program_data
 
     def run(self, filename: pathlib.Path):
-        self.load_program(filename)
+        self.load_program(str(filename))
         self.setup_display()
         pygame.display.set_caption(filename.name)
 
@@ -111,12 +115,12 @@ class Emulator:
             if self.delay_timer > 0:
                 self.delay_timer -= 1
             if self.sound_timer > 0:
-                self.sound_timer - 1
+                self.sound_timer -= 1
 
             if self.draw_flag:
                 self.display()
                 self.draw_flag = False
-            
+
             self.clock.tick(60)
 
         self.stop()
@@ -320,19 +324,17 @@ class Emulator:
             # FX1E - add to index
             elif last_byte == 0x1E:
                 self.index_register = (
-                    self.index_register + self.access_var_reg(x) & 0xFFF
+                        self.index_register + self.access_var_reg(x) & 0xFFF
                 )
 
-            # FX0A - get key  #TODO: not sure about this...
-            # TODO: update -> this is not working as intended
-                # FIXME: current implementation freezes the program
+            # FX0A - get key
             elif last_byte == 0x0A:
-                while True:
-                    for index, key_state in enumerate(self.key_states):
-                        if key_state == 1:
-                            self.modify_var_register(location=x, new_content=index)
-                            print("Key Pressed!")
-                            break
+                for index, key_state in enumerate(self.key_states):
+                    if key_state == 1:
+                        self.modify_var_register(location=x, new_content=index)
+                        break
+                else:
+                    self.program_counter -= 2
 
             # FX29 - font character
             elif last_byte == 0x29:
@@ -372,7 +374,7 @@ class Emulator:
 
     def setup_display(self):
         self.internal_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        scale_factor = 10
+        scale_factor = 20
         self.display_width, self.display_height = (
             SCREEN_WIDTH * scale_factor,
             SCREEN_HEIGHT * scale_factor,

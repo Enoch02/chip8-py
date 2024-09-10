@@ -1,33 +1,41 @@
 import configparser
 import pathlib
-from emulator import Emulator
+import threading
+from typing import Dict
 
-import pygame
 from PyQt6.QtCore import QFileInfo
-from PyQt6.QtGui import QKeyEvent, QKeySequence
+from PyQt6.QtGui import QAction, QKeyEvent
+from PyQt6.QtGui import QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
     QWidget,
-    QPushButton,
     QListWidget,
     QListWidgetItem,
-    QHBoxLayout,
     QVBoxLayout,
     QFileDialog,
     QMessageBox,
 )
-from PyQt6.QtGui import QAction, QKeyEvent
-import threading
-from typing import Dict
+
+from emulator import Emulator
 
 ROMS_FOLDER_CONFIG_KEY = "current_rom_folder"
 PREVIOUS_FILE_DIR_KEY = "prev_file_dir"
 
 
+def exit_application():
+    QApplication.quit()
+
+
+# noinspection PyUnresolvedReferences
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
+        self.game_thread = None
+        self.emulator = None
+        self.list_widget = None
+        self.main_layout = None
+        self.central_widget = None
         self.config = configparser.ConfigParser()
         self.roms: Dict[str, pathlib.Path] = {}
 
@@ -89,7 +97,7 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
 
         quit_action = QAction("Close Application", self)
-        quit_action.triggered.connect(self.exit_application)
+        quit_action.triggered.connect(exit_application)
         file_menu.addAction(quit_action)
 
     def setup_main_window(self):
@@ -103,9 +111,6 @@ class MainWindow(QMainWindow):
 
         self.main_layout.addWidget(self.list_widget)
 
-    def exit_application(self):
-        QApplication.quit()
-
     def open_rom_file(self):
         file_name, _ = QFileDialog.getOpenFileName(
             self, "Open File", self.previous_dir, "CHIP-8 ROMS (*.ch8)"
@@ -113,7 +118,8 @@ class MainWindow(QMainWindow):
         self.previous_dir = QFileInfo(file_name).absolutePath()
         self.save_config(key=PREVIOUS_FILE_DIR_KEY, value=self.previous_dir)
 
-        self.run_rom(file_name)
+        file_path = pathlib.Path(file_name)
+        self.run_rom(file_path)
 
     def get_roms_folder(self):
         folder_path = QFileDialog.getExistingDirectory(self, "Select ROM Folder")
@@ -149,7 +155,7 @@ class MainWindow(QMainWindow):
 
         self.run_rom(file.absolute())
 
-    def run_rom(self, rom_path: str):
+    def run_rom(self, rom_path: pathlib.Path):
         try:
             self.emulator = Emulator()
             self.game_thread = threading.Thread(target=self.emulator.run(rom_path))
