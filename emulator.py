@@ -29,7 +29,7 @@ class Emulator:
         self.sound_timer = 0
         self.carry_flag = 0
         self.screen_array = [[0] * SCREEN_WIDTH for _ in range(SCREEN_HEIGHT)]
-        self.memory[FONT_START_ADDRESS: FONT_START_ADDRESS + len(FONT_SET)] = FONT_SET
+        self.memory[FONT_START_ADDRESS : FONT_START_ADDRESS + len(FONT_SET)] = FONT_SET
         self.draw_flag = False
         self.key_states = [0] * 16  # 1 is pressed state
 
@@ -43,7 +43,6 @@ class Emulator:
     def stop(self):
         if self.running:
             self.running = False
-            print("From the emulator!")
         self.draw_flag = False
 
         # clear loaded content
@@ -92,7 +91,9 @@ class Emulator:
             if len(program_data) + PROGRAM_START_ADDRESS > len(self.memory):
                 raise ValueError("Program is too large to fit in memory.")
             # Load program data into memory starting at 0x200
-            self.memory[PROGRAM_START_ADDRESS: PROGRAM_START_ADDRESS + len(program_data)] = program_data
+            self.memory[
+                PROGRAM_START_ADDRESS : PROGRAM_START_ADDRESS + len(program_data)
+            ] = program_data
 
     def run(self, filename: pathlib.Path):
         self.load_program(str(filename))
@@ -324,7 +325,7 @@ class Emulator:
             # FX1E - add to index
             elif last_byte == 0x1E:
                 self.index_register = (
-                        self.index_register + self.access_var_reg(x) & 0xFFF
+                    self.index_register + self.access_var_reg(x) & 0xFFF
                 )
 
             # FX0A - get key
@@ -374,7 +375,7 @@ class Emulator:
 
     def setup_display(self):
         self.internal_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        scale_factor = 20
+        scale_factor = 15
         self.display_width, self.display_height = (
             SCREEN_WIDTH * scale_factor,
             SCREEN_HEIGHT * scale_factor,
@@ -388,9 +389,9 @@ class Emulator:
             for y in range(SCREEN_HEIGHT):
                 try:
                     if self.screen_array[y][x] == 0:
-                        self.pixels[x, y] = (255, 255, 255)
-                    else:
                         self.pixels[x, y] = (0, 0, 0)
+                    else:
+                        self.pixels[x, y] = (255, 255, 255)
                 except IndexError:
                     print(f"IndexError: Tried to access ({x}, {y})")
 

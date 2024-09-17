@@ -1,23 +1,20 @@
 import configparser
 import pathlib
-import threading
 from typing import Dict
 
+from ui.emulator_worker import EmulatorWorker
 from PyQt6.QtCore import QFileInfo
-from PyQt6.QtGui import QAction, QKeyEvent
-from PyQt6.QtGui import QKeySequence
+from PyQt6.QtGui import QAction, QCloseEvent, QKeyEvent, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
-    QMainWindow,
-    QWidget,
+    QFileDialog,
     QListWidget,
     QListWidgetItem,
-    QVBoxLayout,
-    QFileDialog,
+    QMainWindow,
     QMessageBox,
+    QVBoxLayout,
+    QWidget,
 )
-
-from emulator import Emulator
 
 ROMS_FOLDER_CONFIG_KEY = "current_rom_folder"
 PREVIOUS_FILE_DIR_KEY = "prev_file_dir"
@@ -156,15 +153,18 @@ class MainWindow(QMainWindow):
         self.run_rom(file.absolute())
 
     def run_rom(self, rom_path: pathlib.Path):
-        try:
+        """try:
             self.emulator = Emulator()
             self.game_thread = threading.Thread(target=self.emulator.run(rom_path))
             self.game_thread.start()
         except Exception as e:
-            print(e)
+            print(e)"""
+        self.emulator_worker = EmulatorWorker(parent=self, rom_path=rom_path)
+        self.emulator_worker.error.connect(lambda x: print(x))
+        self.emulator_worker.run()
 
-    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
-        if a0.matches(QKeySequence.StandardKey.Quit):
-            self.emulator.stop()
-        else:
-            super().keyPressEvent(a0)
+    def closeEvent(self, event: QCloseEvent | None) -> None:
+        if self.emulator_worker:
+            self.emulator_worker.stop_running()
+        
+        event.accept()
