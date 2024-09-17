@@ -1,6 +1,8 @@
+import pathlib
 import random
-import sys
+
 import pygame
+
 from constants import (
     FONT_START_ADDRESS,
     FONT_SET,
@@ -13,7 +15,11 @@ from constants import (
 class Emulator:
 
     def __init__(self, set_vx_to_vy=False) -> None:
-        pygame.init()
+        self.screen = None
+        self.pixels = None
+        self.display_height = None
+        self.display_width = None
+        self.internal_surface = None
         self.memory = [0] * 4096
         self.variable_register = [0] * 16
         self.index_register = 0
@@ -23,11 +29,37 @@ class Emulator:
         self.sound_timer = 0
         self.carry_flag = 0
         self.screen_array = [[0] * SCREEN_WIDTH for _ in range(SCREEN_HEIGHT)]
-        self.memory[FONT_START_ADDRESS : FONT_START_ADDRESS + len(FONT_SET)] = FONT_SET
+        self.memory[FONT_START_ADDRESS: FONT_START_ADDRESS + len(FONT_SET)] = FONT_SET
         self.draw_flag = False
         self.key_states = [0] * 16  # 1 is pressed state
 
         self.set_vx_to_vy = set_vx_to_vy
+        self.running = True
+
+        pygame.init()
+        self.beep = pygame.mixer.Sound("bleep-41488.mp3")
+        self.clock = pygame.time.Clock()
+
+    def stop(self):
+        if self.running:
+            self.running = False
+            print("From the emulator!")
+        self.draw_flag = False
+
+        # clear loaded content
+        self.memory = [0] * 4096
+        self.variable_register = [0] * 16
+        self.index_register = 0
+        self.program_counter = PROGRAM_START_ADDRESS
+        self.stack = []
+        self.delay_timer = 0
+        self.sound_timer = 0
+        self.carry_flag = 0
+        self.screen_array = [[0] * SCREEN_WIDTH for _ in range(SCREEN_HEIGHT)]
+        self.key_states = [0] * 16  # 1 is pressed state
+
+        pygame.display.quit()
+        pygame.quit()
 
     def modify_memory(self, location: int, new_content: int):
         if location <= 4096:
@@ -60,25 +92,22 @@ class Emulator:
             if len(program_data) + PROGRAM_START_ADDRESS > len(self.memory):
                 raise ValueError("Program is too large to fit in memory.")
             # Load program data into memory starting at 0x200
-            self.memory[
-                PROGRAM_START_ADDRESS : PROGRAM_START_ADDRESS + len(program_data)
-            ] = program_data
+            self.memory[PROGRAM_START_ADDRESS: PROGRAM_START_ADDRESS + len(program_data)] = program_data
 
-    def run(self, filename: str):
-        self.load_program(filename)
+    def run(self, filename: pathlib.Path):
+        self.load_program(str(filename))
         self.setup_display()
+        pygame.display.set_caption(filename.name)
 
-        while True:
-            for _ in range(15):
+        while self.running:
+            for _ in range(30):  # TODO: make configurable
                 self.decode_and_execute(instruction=self.fetch())
 
-            beep = pygame.mixer.Sound("bleep-41488.mp3")
-
             if self.sound_timer > 0:
-                beep.play()
+                self.beep.play()
 
             if self.sound_timer == 0:
-                beep.stop()
+                self.beep.stop()
 
             self.handle_inputs()
 
@@ -86,11 +115,15 @@ class Emulator:
             if self.delay_timer > 0:
                 self.delay_timer -= 1
             if self.sound_timer > 0:
-                self.sound_timer - 1
+                self.sound_timer -= 1
 
             if self.draw_flag:
                 self.display()
                 self.draw_flag = False
+
+            self.clock.tick(60)
+
+        self.stop()
 
     def fetch(self) -> int:
         first_opcode = self.access_memory(location=self.program_counter)
@@ -291,17 +324,17 @@ class Emulator:
             # FX1E - add to index
             elif last_byte == 0x1E:
                 self.index_register = (
-                    self.index_register + self.access_var_reg(x) & 0xFFF
+                        self.index_register + self.access_var_reg(x) & 0xFFF
                 )
 
-            # FX0A - get key  #TODO: not sure about this...
+            # FX0A - get key
             elif last_byte == 0x0A:
-                while True:
-                    for index, key_state in enumerate(self.key_states):
-                        if key_state == 1:
-                            self.modify_var_register(location=x, new_content=index)
-                            print("Key Pressed!")
-                            break
+                for index, key_state in enumerate(self.key_states):
+                    if key_state == 1:
+                        self.modify_var_register(location=x, new_content=index)
+                        break
+                else:
+                    self.program_counter -= 2
 
             # FX29 - font character
             elif last_byte == 0x29:
@@ -341,7 +374,7 @@ class Emulator:
 
     def setup_display(self):
         self.internal_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        scale_factor = 10
+        scale_factor = 20
         self.display_width, self.display_height = (
             SCREEN_WIDTH * scale_factor,
             SCREEN_HEIGHT * scale_factor,
@@ -370,8 +403,7 @@ class Emulator:
     def handle_inputs(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                self.running = False
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:
