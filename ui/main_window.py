@@ -29,13 +29,9 @@ def exit_application():
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.game_thread = None
-        self.emulator = None
-        self.list_widget = None
-        self.main_layout = None
-        self.central_widget = None
         self.config = configparser.ConfigParser()
         self.roms: Dict[str, pathlib.Path] = {}
+        self.emulator_worker = None
 
         self.check_config()
 
@@ -99,6 +95,13 @@ class MainWindow(QMainWindow):
         quit_action.triggered.connect(exit_application)
         file_menu.addAction(quit_action)
 
+        controls_menu = menubar.addMenu("Chip8 Controls")
+        self.toggle_emulation_action = QAction("Pause Emulation", self)
+        self.toggle_emulation_action.setShortcut("Ctrl+P")
+        self.toggle_emulation_action.triggered.connect(self.toggle_emulation_state)
+        self.toggle_emulation_action.setEnabled(False)
+        controls_menu.addAction(self.toggle_emulation_action)
+
     def setup_main_window(self):
         self.main_layout = QVBoxLayout(self.central_widget)
 
@@ -158,6 +161,7 @@ class MainWindow(QMainWindow):
         self.run_rom(file.absolute())
 
     def run_rom(self, rom_path: pathlib.Path):
+        self.toggle_emulation_action.setEnabled(True)
         self.emulator_worker = EmulatorWorker(parent=self, rom_path=rom_path)
         self.emulator_worker.error.connect(lambda x: print(x))
         self.emulator_worker.memory_changed.connect(self.update_memory_widget)
@@ -165,6 +169,17 @@ class MainWindow(QMainWindow):
 
     def update_memory_widget(self, mem: list[int]):
         self.memory_widget.update(memory=mem)
+
+    def toggle_emulation_state(self):
+        if self.emulator_worker:
+            print(f"paused: {self.emulator_worker.emu_running()}")
+            if self.emulator_worker.emu_running():
+                self.toggle_emulation_action.setText("Resume Emulation")
+                self.emulator_worker.pause_emu()
+            else:
+                print("NOT Running")
+                self.toggle_emulation_action.setText("Pause Emulation")
+                self.emulator_worker.resume_emu()
 
     def closeEvent(self, event: QCloseEvent | None) -> None:
         if self.emulator_worker:

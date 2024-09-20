@@ -34,6 +34,7 @@ class Emulator:
 
         self.set_vx_to_vy = set_vx_to_vy
         self.running = True
+        self.pause_execution = False
 
         pygame.init()
         self.beep = pygame.mixer.Sound("bleep-41488.mp3")
@@ -100,8 +101,9 @@ class Emulator:
         pygame.display.set_caption(filename.name)
 
         while self.running:
-            for _ in range(30):  # TODO: make configurable
-                self.decode_and_execute(instruction=self.fetch())
+            if not self.pause_execution:
+                for _ in range(30):  # TODO: make configurable
+                    self.decode_and_execute(instruction=self.fetch())
 
             if self.sound_timer > 0:
                 self.beep.play()

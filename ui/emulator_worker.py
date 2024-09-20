@@ -1,3 +1,4 @@
+import email
 import pathlib
 
 from emulator import Emulator
@@ -24,6 +25,14 @@ class EmulatorWorker(QThread):
         self.emulator.stop()
         self.terminate()
         self.wait()
+
+    def emu_running(self): return not self.emulator.pause_execution
+
+    def pause_emu(self):
+        self.emulator.pause_execution = True
+
+    def resume_emu(self):
+        self.emulator.pause_execution = False
 
     def run(self) -> None:
         self.timer.start(self.frequency)
