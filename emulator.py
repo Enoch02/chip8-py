@@ -2,13 +2,12 @@ import pathlib
 import random
 
 import pygame
-
 from constants import (
-    FONT_START_ADDRESS,
     FONT_SET,
-    SCREEN_WIDTH,
-    SCREEN_HEIGHT,
+    FONT_START_ADDRESS,
     PROGRAM_START_ADDRESS,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
 )
 
 

@@ -2,9 +2,8 @@ import configparser
 import pathlib
 from typing import Dict
 
-from ui.emulator_worker import EmulatorWorker
 from PyQt6.QtCore import QFileInfo
-from PyQt6.QtGui import QAction, QCloseEvent, QKeyEvent, QKeySequence
+from PyQt6.QtGui import QAction, QCloseEvent, QGuiApplication
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -15,6 +14,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from ui.emulator_worker import EmulatorWorker
+from ui.memory_widget import Chip8MemoryWidget
 
 ROMS_FOLDER_CONFIG_KEY = "current_rom_folder"
 PREVIOUS_FILE_DIR_KEY = "prev_file_dir"
@@ -68,7 +69,8 @@ class MainWindow(QMainWindow):
             self.config.write(configFile)
 
     def init_ui(self):
-        self.setMinimumSize(600, 400)
+        screen = QGuiApplication.primaryScreen().availableGeometry()
+        self.setMinimumSize(screen.width() // 2, screen.height())
         self.setWindowTitle("Enoch's Cheap8 Emulator")
 
         self.central_widget = QWidget()
@@ -106,7 +108,10 @@ class MainWindow(QMainWindow):
         self.load_roms(self.roms_folder)
         self.add_roms_to_list()
 
+        self.memory_widget = Chip8MemoryWidget()
+
         self.main_layout.addWidget(self.list_widget)
+        self.main_layout.addWidget(self.memory_widget)
 
     def open_rom_file(self):
         file_name, _ = QFileDialog.getOpenFileName(
@@ -153,18 +158,16 @@ class MainWindow(QMainWindow):
         self.run_rom(file.absolute())
 
     def run_rom(self, rom_path: pathlib.Path):
-        """try:
-            self.emulator = Emulator()
-            self.game_thread = threading.Thread(target=self.emulator.run(rom_path))
-            self.game_thread.start()
-        except Exception as e:
-            print(e)"""
         self.emulator_worker = EmulatorWorker(parent=self, rom_path=rom_path)
         self.emulator_worker.error.connect(lambda x: print(x))
+        self.emulator_worker.memory_changed.connect(self.update_memory_widget)
         self.emulator_worker.run()
+
+    def update_memory_widget(self, mem: list[int]):
+        self.memory_widget.update(memory=mem)
 
     def closeEvent(self, event: QCloseEvent | None) -> None:
         if self.emulator_worker:
             self.emulator_worker.stop_running()
-        
+
         event.accept()
