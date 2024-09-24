@@ -13,9 +13,12 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QVBoxLayout,
     QWidget,
+    QHBoxLayout,
+    QLabel
 )
 from ui.emulator_worker import EmulatorWorker
 from ui.memory_widget import Chip8MemoryWidget
+from ui.registers_widget import Chip8RegistersWidget, RegisterData
 
 ROMS_FOLDER_CONFIG_KEY = "current_rom_folder"
 PREVIOUS_FILE_DIR_KEY = "prev_file_dir"
@@ -66,7 +69,7 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         screen = QGuiApplication.primaryScreen().availableGeometry()
-        self.setMinimumSize(screen.width() // 2, screen.height())
+        self.setMinimumSize(screen.width() // 2, screen.height() - 100)
         self.setWindowTitle("Enoch's Cheap8 Emulator")
 
         self.central_widget = QWidget()
@@ -103,7 +106,9 @@ class MainWindow(QMainWindow):
         controls_menu.addAction(self.toggle_emulation_action)
 
     def setup_main_window(self):
-        self.main_layout = QVBoxLayout(self.central_widget)
+        self.main_layout = QHBoxLayout(self.central_widget)
+        list_and_memory_layout = QVBoxLayout()
+        registers_layout = QVBoxLayout()
 
         self.list_widget = QListWidget()
         self.list_widget.setAlternatingRowColors(True)
@@ -111,10 +116,19 @@ class MainWindow(QMainWindow):
         self.load_roms(self.roms_folder)
         self.add_roms_to_list()
 
-        self.memory_widget = Chip8MemoryWidget()
+        self.memory_widget = Chip8MemoryWidget(parent=self)
 
-        self.main_layout.addWidget(self.list_widget)
-        self.main_layout.addWidget(self.memory_widget)
+        list_and_memory_layout.addWidget(self.list_widget)
+        list_and_memory_layout.addWidget(self.memory_widget)
+
+        self.registers_widget = Chip8RegistersWidget(parent=self)
+
+        registers_layout.addWidget(self.registers_widget)
+        registers_layout.addWidget(QLabel("Hello, World!"))
+
+        self.main_layout.addLayout(registers_layout)
+        self.main_layout.addSpacing(5)
+        self.main_layout.addLayout(list_and_memory_layout)
 
     def open_rom_file(self):
         file_name, _ = QFileDialog.getOpenFileName(
@@ -165,10 +179,14 @@ class MainWindow(QMainWindow):
         self.emulator_worker = EmulatorWorker(parent=self, rom_path=rom_path)
         self.emulator_worker.error.connect(lambda x: print(x))
         self.emulator_worker.memory_changed.connect(self.update_memory_widget)
+        self.emulator_worker.register_changed.connect(self.update_register_widget)
         self.emulator_worker.run()
 
     def update_memory_widget(self, mem: list[int]):
         self.memory_widget.update(memory=mem)
+
+    def update_register_widget(self, data: RegisterData):
+        self.registers_widget.update(data)
 
     def toggle_emulation_state(self):
         if self.emulator_worker:

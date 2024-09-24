@@ -8,7 +8,9 @@ from PyQt6.QtWidgets import (
 
 
 class Chip8MemoryWidget(QWidget):
-    def __init__(self, memory_size=4096, bytes_per_row=8, parent=None):
+    def __init__(
+        self, memory_size: int = 4096, bytes_per_row: int = 8, parent: QWidget = None
+    ):
         super().__init__(parent)
 
         self.memory_size = memory_size
@@ -18,7 +20,9 @@ class Chip8MemoryWidget(QWidget):
 
         self.table = QTableWidget()
         self.table.setRowCount(self.memory_size // self.bytes_per_row)
-        self.table.setColumnCount(self.bytes_per_row + 1)  # Add extra column for meaning
+        self.table.setColumnCount(
+            self.bytes_per_row + 1
+        )  # Add extra column for meaning
         headers = [f"0x{col:X}" for col in range(self.bytes_per_row)] + ["Meaning"]
         self.table.setHorizontalHeaderLabels(headers)
 
@@ -41,13 +45,15 @@ class Chip8MemoryWidget(QWidget):
                 meaning = self.get_meaning(memory, address)
 
                 item = QTableWidgetItem(f"{byte_value:02X}")
-                item.setFlags(item.flags() & Qt.ItemFlag.ItemIsEditable)  # Make it read-only
+                item.setFlags(
+                    item.flags() & Qt.ItemFlag.ItemIsEditable
+                )  # Make it read-only
                 self.table.setItem(i, j, item)
 
                 meaning_item = QTableWidgetItem(meaning)
                 meaning_item.setFlags(meaning_item.flags() & Qt.ItemFlag.ItemIsEditable)
                 self.table.setItem(i, self.bytes_per_row, meaning_item)
-                
+
         self.table.setUpdatesEnabled(True)
         self.table.viewport().update()
 
