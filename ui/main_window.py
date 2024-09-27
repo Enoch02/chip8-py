@@ -7,14 +7,14 @@ from PyQt6.QtGui import QAction, QCloseEvent, QGuiApplication
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
+    QHBoxLayout,
+    QLabel,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
     QMessageBox,
     QVBoxLayout,
     QWidget,
-    QHBoxLayout,
-    QLabel
 )
 from ui.emulator_worker import EmulatorWorker
 from ui.memory_widget import Chip8MemoryWidget
@@ -127,7 +127,6 @@ class MainWindow(QMainWindow):
         registers_layout.addWidget(QLabel("Hello, World!"))
 
         self.main_layout.addLayout(registers_layout)
-        self.main_layout.addSpacing(5)
         self.main_layout.addLayout(list_and_memory_layout)
 
     def open_rom_file(self):

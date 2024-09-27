@@ -1,7 +1,14 @@
 from dataclasses import dataclass
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 @dataclass
@@ -22,10 +29,11 @@ class Chip8RegistersWidget(QWidget):
 
         self.v_labels: list[QLabel] = []
 
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
         layout = QVBoxLayout(self)
 
-        frame1 = QFrame()
-        frame1.setFrameShape(QFrame.Shape.Box)
+        frame1 = self.create_frame()
         row1 = QHBoxLayout()
         self.pc_lbl = QLabel(f"PC \n 512")
         self.pc_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -51,10 +59,10 @@ class Chip8RegistersWidget(QWidget):
         row1.addWidget(self.st_lbl)
 
         frame1.setLayout(row1)
+        frame1.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         layout.addWidget(frame1)
 
-        frame2 = QFrame()
-        frame2.setFrameShape(QFrame.Shape.Box)
+        frame2 = self.create_frame()
         row2 = QHBoxLayout()
 
         for i in range(0, 8):
@@ -68,8 +76,7 @@ class Chip8RegistersWidget(QWidget):
         frame2.setLayout(row2)
         layout.addWidget(frame2)
 
-        frame3 = QFrame()
-        frame3.setFrameShape(QFrame.Shape.Box)
+        frame3 = self.create_frame()
         row3 = QHBoxLayout()
 
         for i in range(8, 16):
@@ -98,3 +105,10 @@ class Chip8RegistersWidget(QWidget):
         v_line.setFrameShadow(QFrame.Shadow.Plain)
 
         return v_line
+    
+    def create_frame(self) -> QFrame:
+        frame = QFrame()
+        frame.setFrameShape(QFrame.Shape.Box)
+        frame.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+        return frame
