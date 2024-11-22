@@ -154,13 +154,18 @@ class MainWindow(QMainWindow):
         self.add_roms_to_list()
 
     def load_roms(self, folder_path: str):
-        folder = pathlib.Path(folder_path)
-        content = folder.iterdir()
+        try:
+            folder = pathlib.Path(folder_path)
+            content = folder.iterdir()
 
-        for item in content:
-            if not item.is_dir():
-                if item.suffix == ".ch8":
-                    self.roms[f"{item.name}"] = item
+            for item in content:
+                if not item.is_dir():
+                    if item.suffix == ".ch8":
+                        self.roms[f"{item.name}"] = item
+        except FileNotFoundError:
+            QMessageBox.warning(
+                self, "Warning", f"Could not open ROM folder at: {folder_path}"
+            )
 
     def add_roms_to_list(self):
         for rom in self.roms.keys():
