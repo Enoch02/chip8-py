@@ -30,7 +30,8 @@ class EmulatorWorker(QThread):
         self.terminate()
         self.wait()
 
-    def emu_running(self): return not self.emulator.pause_execution
+    def emu_running(self):
+        return not self.emulator.pause_execution
 
     def pause_emu(self):
         self.emulator.pause_execution = True
@@ -49,14 +50,14 @@ class EmulatorWorker(QThread):
     def send_memory_content(self):
         self.memory_changed.emit(self.emulator.memory)
 
-    #TODO: use a separate timer and maybe make the frequency configurable
+    # TODO: use a separate timer and maybe make the frequency configurable
     def send_register_content(self):
         data = RegisterData(
             pc=self.emulator.program_counter,
             i=self.emulator.index_register,
             dt=self.emulator.delay_timer,
             st=self.emulator.sound_timer,
-            v=self.emulator.variable_register
+            v=self.emulator.variable_register,
         )
 
         self.register_changed.emit(data)

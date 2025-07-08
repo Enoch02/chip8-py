@@ -159,9 +159,13 @@ class MainWindow(QMainWindow):
             content = folder.iterdir()
 
             for item in content:
-                if not item.is_dir():
+                if item.is_dir():
+                    self.load_roms(item)
+                else:
                     if item.suffix == ".ch8":
                         self.roms[f"{item.name}"] = item
+            
+            self.roms = dict(sorted(self.roms.items()))
         except FileNotFoundError:
             QMessageBox.warning(
                 self, "Warning", f"Could not open ROM folder at: {folder_path}"
