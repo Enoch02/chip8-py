@@ -7,6 +7,7 @@ from PyQt6.QtGui import QAction, QCloseEvent, QGuiApplication
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -124,7 +125,29 @@ class MainWindow(QMainWindow):
         self.registers_widget = Chip8RegistersWidget(parent=self)
 
         registers_layout.addWidget(self.registers_widget)
-        registers_layout.addWidget(QLabel("Hello, World!"))
+        
+        # Keymap display
+        keymap_label = QLabel("Keypad Mapping:")
+        registers_layout.addWidget(keymap_label)
+        
+        grid_widget = QWidget()
+        grid_layout = QGridLayout(grid_widget)
+        grid_layout.setSpacing(10)
+        
+        # Standard CHIP-8 layout mapping
+        layout_map = [
+            [("1", "0x1"), ("2", "0x2"), ("3", "0x3"), ("4", "0xC")],
+            [("Q", "0x4"), ("W", "0x5"), ("E", "0x6"), ("R", "0xD")],
+            [("A", "0x7"), ("S", "0x8"), ("D", "0x9"), ("F", "0xE")],
+            [("Z", "0xA"), ("X", "0x0"), ("C", "0xB"), ("V", "0xF")],
+        ]
+        
+        for row, row_keys in enumerate(layout_map):
+            for col, (key, hex_val) in enumerate(row_keys):
+                lbl = QLabel(f"[{key}] → {hex_val}")
+                grid_layout.addWidget(lbl, row, col)
+        
+        registers_layout.addWidget(grid_widget)
 
         self.main_layout.addLayout(registers_layout)
         self.main_layout.addLayout(list_and_memory_layout)

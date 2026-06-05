@@ -415,74 +415,18 @@ class Emulator:
         pygame.display.flip()
 
     def handle_inputs(self):
+        key_map = {
+            pygame.K_1: 0x1, pygame.K_2: 0x2, pygame.K_3: 0x3, pygame.K_4: 0xC,
+            pygame.K_q: 0x4, pygame.K_w: 0x5, pygame.K_e: 0x6, pygame.K_r: 0xD,
+            pygame.K_a: 0x7, pygame.K_s: 0x8, pygame.K_d: 0x9, pygame.K_f: 0xE,
+            pygame.K_z: 0xA, pygame.K_x: 0x0, pygame.K_c: 0xB, pygame.K_v: 0xF,
+        }
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
 
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_1:
-                    self.key_states[0] = 1
-                if event.key == pygame.K_2:
-                    self.key_states[1] = 1
-                if event.key == pygame.K_3:
-                    self.key_states[2] = 1
-                if event.key == pygame.K_4:
-                    self.key_states[3] = 1
-                if event.key == pygame.K_q:
-                    self.key_states[4] = 1
-                if event.key == pygame.K_w:
-                    self.key_states[5] = 1
-                if event.key == pygame.K_e:
-                    self.key_states[6] = 1
-                if event.key == pygame.K_r:
-                    self.key_states[7] = 1
-                if event.key == pygame.K_a:
-                    self.key_states[8] = 1
-                if event.key == pygame.K_s:
-                    self.key_states[9] = 1
-                if event.key == pygame.K_d:
-                    self.key_states[10] = 1
-                if event.key == pygame.K_f:
-                    self.key_states[11] = 1
-                if event.key == pygame.K_z:
-                    self.key_states[12] = 1
-                if event.key == pygame.K_x:
-                    self.key_states[13] = 1
-                if event.key == pygame.K_c:
-                    self.key_states[14] = 1
-                if event.key == pygame.K_v:
-                    self.key_states[15] = 1
-
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_1:
-                    self.key_states[0] = 0
-                if event.key == pygame.K_2:
-                    self.key_states[1] = 0
-                if event.key == pygame.K_3:
-                    self.key_states[2] = 0
-                if event.key == pygame.K_4:
-                    self.key_states[3] = 0
-                if event.key == pygame.K_q:
-                    self.key_states[4] = 0
-                if event.key == pygame.K_w:
-                    self.key_states[5] = 0
-                if event.key == pygame.K_e:
-                    self.key_states[6] = 0
-                if event.key == pygame.K_r:
-                    self.key_states[7] = 0
-                if event.key == pygame.K_a:
-                    self.key_states[8] = 0
-                if event.key == pygame.K_s:
-                    self.key_states[9] = 0
-                if event.key == pygame.K_d:
-                    self.key_states[10] = 0
-                if event.key == pygame.K_f:
-                    self.key_states[11] = 0
-                if event.key == pygame.K_z:
-                    self.key_states[12] = 0
-                if event.key == pygame.K_x:
-                    self.key_states[13] = 0
-                if event.key == pygame.K_c:
-                    self.key_states[14] = 0
-                if event.key == pygame.K_v:
-                    self.key_states[15] = 0
+            if event.type in (pygame.KEYDOWN, pygame.KEYUP):
+                if event.key in key_map:
+                    state = 1 if event.type == pygame.KEYDOWN else 0
+                    self.key_states[key_map[event.key]] = state
