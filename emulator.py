@@ -37,7 +37,9 @@ class Emulator:
         self.pause_execution = False
 
         pygame.init()
-        self.beep = pygame.mixer.Sound("bleep-41488.mp3")
+        pygame.mixer.init()
+        # self.beep = pygame.mixer.Sound("bleep-41488.mp3")
+        self.beep = pygame.mixer.Sound("0722.MP3")
         self.playing_sound = False
         self.clock = pygame.time.Clock()
 
@@ -105,15 +107,12 @@ class Emulator:
             if not self.pause_execution:
                 for _ in range(30):  # TODO: make configurable
                     self.decode_and_execute(instruction=self.fetch())
-                    self.decrement_timers()
-                    self.play_sound()
+
+                self.decrement_timers()
+                self.play_sound()
 
             self.handle_inputs()
 
-            # TODO: not working fine
-            if self.delay_timer > 0:
-                self.delay_timer -= 1
-                
             if self.draw_flag:
                 self.display()
                 self.draw_flag = False
@@ -123,15 +122,21 @@ class Emulator:
         self.stop()
 
     def decrement_timers(self):
+        if self.delay_timer > 0:
+            self.delay_timer -= 1
         if self.sound_timer > 0:
             self.sound_timer -= 1
-            if self.sound_timer == 0:
-                self.playing_sound = True
 
     def play_sound(self):
         if self.beep:
-            self.beep.play()
-            self.playing_sound = False
+            if self.sound_timer > 0:
+                if not self.playing_sound:
+                    self.beep.play(loops=-1)
+                    self.playing_sound = True
+            else:
+                if self.playing_sound:
+                    self.beep.stop()
+                    self.playing_sound = False
 
     def fetch(self) -> int:
         first_opcode = self.access_memory(location=self.program_counter)
